@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	EXPIRY = 1
+	expiry = 5 * time.Millisecond
 )
 
 type localCacheSuite struct {
@@ -21,7 +21,7 @@ func (s *localCacheSuite) SetupSuite() {}
 func (s *localCacheSuite) TearDownSuite() {}
 
 func (s *localCacheSuite) SetupTest() {
-	s.cache = New(EXPIRY).(*cache)
+	s.cache = New(expiry).(*cache)
 }
 
 func (s *localCacheSuite) TearDownTest() {}
@@ -48,14 +48,17 @@ func (s *localCacheSuite) TestGet() {
 		},
 		{
 			Desc: "data not found",
+			Key:  "key2",
 			SetupTest: func() {
 			},
 			ExpError: ErrCacheMiss,
 		},
 		{
 			Desc: "cache expiry",
+			Key:  "key3",
 			SetupTest: func() {
-				time.Sleep(2 * time.Second)
+				s.cache.Set("key3", "data3")
+				time.Sleep(expiry + (5 * time.Millisecond))
 			},
 			ExpError: ErrCacheMiss,
 		},
@@ -67,7 +70,7 @@ func (s *localCacheSuite) TestGet() {
 		res, err := s.cache.Get(t.Key)
 		if err != nil {
 			s.Require().Equal(t.ExpError, err, t.Desc)
-			return
+			continue
 		}
 		s.Require().Equal(t.ExpResult, res, t.Desc)
 	}
@@ -98,9 +101,11 @@ func (s *localCacheSuite) TestSet() {
 	}
 
 	for _, t := range tests {
-		s.cache.Set(t.Key, t.ExpResult)
-
+		t.SetupTest()
+		err := s.cache.Set(t.Key, t.ExpResult)
 		res, _ := s.cache.data[t.Key]
+
+		s.Require().Equal(nil, err, t.Desc)
 		s.Require().Equal(t.ExpResult, res, t.Desc)
 	}
 }

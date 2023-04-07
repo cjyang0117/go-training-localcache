@@ -16,6 +16,7 @@ func New(expiry time.Duration) Cache {
 type cache struct {
 	m      sync.Mutex
 	expiry time.Duration
+	timer  *time.Timer
 	data   map[string]interface{}
 }
 
@@ -34,8 +35,12 @@ func (c *cache) Set(key string, data interface{}) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
+	if c.timer != nil && c.data[key] != nil {
+		c.timer.Stop()
+	}
+
 	c.data[key] = data
-	time.AfterFunc(c.expiry*time.Second, func() {
+	c.timer = time.AfterFunc(c.expiry, func() {
 		c.m.Lock()
 		defer c.m.Unlock()
 
